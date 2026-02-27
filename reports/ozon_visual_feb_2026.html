@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Ozon Visualization Feb 2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>body{font-family:Arial,sans-serif;background:#111;color:#eee;padding:20px} .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px} .card{background:#1a1a1a;padding:12px;border-radius:12px} canvas{background:#fff;border-radius:8px}</style></head>
+<body><h2>Ozon поартикульная аналитика (01–22.02.2026)</h2>
+<div class="grid">
+<div class="card"><canvas id="rev"></canvas></div>
+<div class="card"><canvas id="units"></canvas></div>
+<div class="card"><canvas id="costs"></canvas></div>
+<div class="card"><canvas id="scatter"></canvas></div>
+</div>
+<script>
+const labelsRev=["ozon_3275517737", "ozon_3416925750", "ozon_3275535359", "ozon_3088337397", "ozon_3072649128", "ozon_3200162514", "ozon_3275541205", "ozon_3200161956", "ozon_3417343128", "ozon_3275537006", "ozon_3200161558", "ozon_3417293193", "ozon_3200161920", "ozon_3072754573", "ozon_2634145701"];
+const valsRev=[3529000.0, 3144013.0, 2600000.0, 1457650.0, 1375644.0, 951324.0, 922760.0, 816330.0, 722740.0, 673463.0, 472835.0, 457806.0, 429574.0, 413308.0, 406000.0];
+new Chart(document.getElementById('rev'),{type:'bar',data:{labels:labelsRev,datasets:[{label:'Выручка ₽',data:valsRev,backgroundColor:'#4e79a7'}]},options:{plugins:{title:{display:true,text:'Top-15 артикулов по выручке'}},scales:{x:{ticks:{maxRotation:65,minRotation:45}}}}});
+const labelsUnits=["ozon_3275517737", "ozon_3275535359", "ozon_3416925750", "ozon_3088337397", "ozon_3072649128", "ozon_3200162514", "ozon_3200161956", "ozon_3275541205", "ozon_3275537006", "ozon_3200161558", "ozon_3417343128", "ozon_3072754573"];
+const valsUnits=[39.0, 26.0, 25.0, 19.0, 12.0, 11.0, 7.0, 6.0, 6.0, 6.0, 5.0, 4.0];
+new Chart(document.getElementById('units'),{type:'bar',data:{labels:labelsUnits,datasets:[{label:'Продано шт',data:valsUnits,backgroundColor:'#76b7b2'}]},options:{plugins:{title:{display:true,text:'Top-12 артикулов по количеству'}},scales:{x:{ticks:{maxRotation:65,minRotation:45}}}}});
+new Chart(document.getElementById('costs'),{type:'bar',data:{labels:['Комиссия','Реклама','Возвраты','Эквайринг','Логистика'],datasets:[{label:'₽',data:[3322780.81, 64452.05, 1378852.13, 120554.04000000001, -8865898.7],backgroundColor:'#e15759'}]},options:{plugins:{title:{display:true,text:'Структура удержаний'}}}});
+const pts=[{"x": -12221.0, "y": 1516245.95, "label": "ozon_3275517737"}, {"x": -11310.6, "y": 1436403.05, "label": "ozon_3416925750"}, {"x": -10000.0, "y": 1116154.57, "label": "ozon_3275535359"}, {"x": -2715.61, "y": 303009.98, "label": "ozon_3088337397"}, {"x": -1146.38, "y": 147730.7, "label": "ozon_3072649128"}, {"x": -1297.26, "y": 98905.76, "label": "ozon_3200162514"}, {"x": -5374.32, "y": 204065.31, "label": "ozon_3275541205"}, {"x": -2331.65, "y": 320746.25, "label": "ozon_3200161956"}, {"x": -2168.22, "y": 294222.82, "label": "ozon_3417343128"}, {"x": -2798.76, "y": 378151.84, "label": "ozon_3275537006"}, {"x": -1191.68, "y": 162164.86, "label": "ozon_3200161558"}, {"x": 0.0, "y": -4894.42, "label": "ozon_3417293193"}, {"x": -757.87, "y": -3620.53, "label": "ozon_3200161920"}, {"x": -2066.56, "y": 224026.86, "label": "ozon_3072754573"}, {"x": -2030.0, "y": 275909.27, "label": "ozon_2634145701"}, {"x": -1980.57, "y": 270551.07, "label": "ozon_3417353802"}, {"x": -1535.52, "y": 208441.44, "label": "ozon_3089132589"}, {"x": -2115.63, "y": 292347.47, "label": "ozon_2838835023"}, {"x": -1410.42, "y": 190045.02, "label": "ozon_3416968084"}, {"x": 0.0, "y": -3325.2, "label": "ozon_3195398719"}, {"x": 0.0, "y": -1862.42, "label": "ozon_3417079949"}, {"x": 0.0, "y": -82318.89, "label": "ozon_1603753465"}, {"x": 0.0, "y": -1298.49, "label": "ozon_3195607893"}];
+new Chart(document.getElementById('scatter'),{type:'scatter',data:{datasets:[{label:'Артикулы',data:pts,backgroundColor:'#f28e2b'}]},options:{plugins:{title:{display:true,text:'Net vs рекламные списания'},tooltip:{callbacks:{label:(ctx)=>ctx.raw.label+': x='+ctx.raw.x.toFixed(0)+', y='+ctx.raw.y.toFixed(0)}}},scales:{x:{title:{display:true,text:'ad_spend_finance ₽'}},y:{title:{display:true,text:'net_amount_finance ₽'}}}}});
+</script></body></html>

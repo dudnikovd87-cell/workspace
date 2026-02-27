@@ -1,0 +1,9 @@
+{
+  "period": "2026-02-01..2026-02-22",
+  "operations": 1222,
+  "finance_amount_total": 5772152.74,
+  "article_split_amount_total": 5772152.74,
+  "difference": -0.0,
+  "articles_with_rows": 27,
+  "file": "/root/.openclaw/workspace/reports/ozon_store_economics_by_article_feb_2026.csv"
+}

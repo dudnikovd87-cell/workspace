@@ -1,0 +1,14 @@
+{
+  "period": "2026-02-01..2026-02-22",
+  "campaigns_total": 190,
+  "campaign_batches": 19,
+  "sku_rows": 26,
+  "finance_ad_total": -1942189.88,
+  "performance_ad_total": 487760.18,
+  "delta_finance_minus_perf": -2429950.06,
+  "perf_impr": 2155083.0,
+  "perf_clicks": 87447.0,
+  "perf_orders": 62.0,
+  "perf_sales": 6699460.0,
+  "failed_batches": 0
+}

@@ -1,0 +1,363 @@
+[
+  {
+    "batch": [
+      22575808,
+      22452263,
+      21421510,
+      21421502,
+      21421493,
+      21421456,
+      21421432,
+      21421419,
+      21421407,
+      21421378
+    ],
+    "uuid": "1e85900d-8998-48d1-afd7-954c53695f28",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=1e85900d-8998-48d1-afd7-954c53695f28",
+    "file": "batch_01_uuid_1e85900d-8998-48d1-afd7-954c53695f28.zip",
+    "size_bytes": 5666
+  },
+  {
+    "batch": [
+      21421366,
+      21421356,
+      21421346,
+      21421337,
+      21421312,
+      21421298,
+      20382007,
+      20381997,
+      20381972,
+      20381949
+    ],
+    "uuid": "c4c4289f-dd47-4321-86a7-0b4ad67ec3c7",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=c4c4289f-dd47-4321-86a7-0b4ad67ec3c7",
+    "file": "batch_02_uuid_c4c4289f-dd47-4321-86a7-0b4ad67ec3c7.zip",
+    "size_bytes": 5999
+  },
+  {
+    "batch": [
+      20381899,
+      20381883,
+      20381875,
+      20381870,
+      20381854,
+      20032330,
+      20032319,
+      20032315,
+      20032311,
+      20032298
+    ],
+    "uuid": "606854e7-96fc-416b-bf87-a0efa763a999",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=606854e7-96fc-416b-bf87-a0efa763a999",
+    "file": "batch_03_uuid_606854e7-96fc-416b-bf87-a0efa763a999.zip",
+    "size_bytes": 5470
+  },
+  {
+    "batch": [
+      20032293,
+      20032289,
+      19899836,
+      19899828,
+      19899818,
+      19899803,
+      19899797,
+      19899790,
+      19899776,
+      19899769
+    ],
+    "uuid": "07362d7e-a2b8-4053-984f-201bb2b7e9af",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=07362d7e-a2b8-4053-984f-201bb2b7e9af",
+    "file": "batch_04_uuid_07362d7e-a2b8-4053-984f-201bb2b7e9af.zip",
+    "size_bytes": 5235
+  },
+  {
+    "batch": [
+      19899762,
+      19899750,
+      19707993,
+      19707982,
+      19707968,
+      19707953,
+      19707944,
+      19707923,
+      19598301,
+      19598296
+    ],
+    "uuid": "b4113cc4-ab1f-4e80-bdd9-0e307de71191",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=b4113cc4-ab1f-4e80-bdd9-0e307de71191",
+    "file": "batch_05_uuid_b4113cc4-ab1f-4e80-bdd9-0e307de71191.zip",
+    "size_bytes": 5024
+  },
+  {
+    "batch": [
+      19598287,
+      19598281,
+      19598275,
+      19598272,
+      19598265,
+      19598260,
+      19598257,
+      19598253,
+      19598249,
+      19598242
+    ],
+    "uuid": "be6255b2-f576-4aaa-83fb-a5f3d2ac0201",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=be6255b2-f576-4aaa-83fb-a5f3d2ac0201",
+    "file": "batch_06_uuid_be6255b2-f576-4aaa-83fb-a5f3d2ac0201.zip",
+    "size_bytes": 5264
+  },
+  {
+    "batch": [
+      19598237,
+      19375180,
+      19365909,
+      19082411,
+      18985636,
+      18985632,
+      18985621,
+      18985613,
+      18985587,
+      18985579
+    ],
+    "uuid": "f5d3676a-7d54-4964-9bc2-2df6828a8edd",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=f5d3676a-7d54-4964-9bc2-2df6828a8edd",
+    "file": "batch_07_uuid_f5d3676a-7d54-4964-9bc2-2df6828a8edd.zip",
+    "size_bytes": 5137
+  },
+  {
+    "batch": [
+      18985567,
+      18985562,
+      18985538,
+      18985528,
+      18985522,
+      18985511,
+      18877879,
+      18873864,
+      18738955,
+      18738950
+    ],
+    "uuid": "055764d6-beaa-480b-983c-526ad64fbd48",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=055764d6-beaa-480b-983c-526ad64fbd48",
+    "file": "batch_08_uuid_055764d6-beaa-480b-983c-526ad64fbd48.zip",
+    "size_bytes": 5218
+  },
+  {
+    "batch": [
+      18738948,
+      18738943,
+      18738938,
+      18732458,
+      18732448,
+      18732437,
+      18732422,
+      18732144,
+      18621935,
+      18621925
+    ],
+    "uuid": "3b370640-e32a-425c-8176-02cb71609212",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=3b370640-e32a-425c-8176-02cb71609212",
+    "file": "batch_09_uuid_3b370640-e32a-425c-8176-02cb71609212.zip",
+    "size_bytes": 5024
+  },
+  {
+    "batch": [
+      18618754,
+      18618739,
+      18551016,
+      18548359,
+      18548333,
+      18548325,
+      18548315,
+      18548305,
+      18548298,
+      18548289
+    ],
+    "uuid": "573885d0-36b2-4832-9166-da894af7a1b2",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=573885d0-36b2-4832-9166-da894af7a1b2",
+    "file": "batch_10_uuid_573885d0-36b2-4832-9166-da894af7a1b2.zip",
+    "size_bytes": 5027
+  },
+  {
+    "batch": [
+      18548261,
+      18548251,
+      18548246,
+      18548231,
+      18490352,
+      18490294,
+      18490269,
+      18490209,
+      18490136,
+      18490123
+    ],
+    "uuid": "3faee110-58c2-466c-be73-6960b60f1003",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=3faee110-58c2-466c-be73-6960b60f1003",
+    "file": "batch_11_uuid_3faee110-58c2-466c-be73-6960b60f1003.zip",
+    "size_bytes": 5023
+  },
+  {
+    "batch": [
+      18490046,
+      18489947,
+      18489883,
+      18489592,
+      18365364,
+      18365361,
+      18365346,
+      17909798,
+      17099808,
+      17099794
+    ],
+    "uuid": "0eaab736-7957-4132-b338-6d34da869833",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=0eaab736-7957-4132-b338-6d34da869833",
+    "file": "batch_12_uuid_0eaab736-7957-4132-b338-6d34da869833.zip",
+    "size_bytes": 5027
+  },
+  {
+    "batch": [
+      17099781,
+      17020839,
+      16978864,
+      16978834,
+      16978825,
+      16978794,
+      16978731,
+      16978531,
+      16978512,
+      16978477
+    ],
+    "uuid": "28db90c0-09f7-4ab6-83df-04ef2a9344f0",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=28db90c0-09f7-4ab6-83df-04ef2a9344f0",
+    "file": "batch_13_uuid_28db90c0-09f7-4ab6-83df-04ef2a9344f0.zip",
+    "size_bytes": 5026
+  },
+  {
+    "batch": [
+      16898740,
+      16875923,
+      16801766,
+      16413414,
+      16393141,
+      16393131,
+      16291384,
+      16291376,
+      16261066,
+      15936734
+    ],
+    "uuid": "72687761-8d70-43f2-b7e5-943036c61596",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=72687761-8d70-43f2-b7e5-943036c61596",
+    "file": "batch_14_uuid_72687761-8d70-43f2-b7e5-943036c61596.zip",
+    "size_bytes": 5021
+  },
+  {
+    "batch": [
+      15914371,
+      15820209,
+      15820194,
+      15782091,
+      15782088,
+      15782083,
+      15782081,
+      15659007,
+      14324378,
+      14282418
+    ],
+    "uuid": "59c81ae0-2cc8-40c0-91b5-883880190f57",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=59c81ae0-2cc8-40c0-91b5-883880190f57",
+    "file": "batch_15_uuid_59c81ae0-2cc8-40c0-91b5-883880190f57.zip",
+    "size_bytes": 5017
+  },
+  {
+    "batch": [
+      14282396,
+      14221158,
+      14127837,
+      14093905,
+      14093858,
+      14093840,
+      14093817,
+      14093797,
+      14093785,
+      14093779
+    ],
+    "uuid": "6efb344e-28f7-4563-9b9b-d7f8e710eadf",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=6efb344e-28f7-4563-9b9b-d7f8e710eadf",
+    "file": "batch_16_uuid_6efb344e-28f7-4563-9b9b-d7f8e710eadf.zip",
+    "size_bytes": 5025
+  },
+  {
+    "batch": [
+      14093717,
+      14093705,
+      14045797,
+      13859312,
+      13859299,
+      13684676,
+      13500466,
+      12639339,
+      11005236,
+      10696325
+    ],
+    "uuid": "0705fab6-9c04-416f-bf29-cbb4ba394e8a",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=0705fab6-9c04-416f-bf29-cbb4ba394e8a",
+    "file": "batch_17_uuid_0705fab6-9c04-416f-bf29-cbb4ba394e8a.zip",
+    "size_bytes": 8365
+  },
+  {
+    "batch": [
+      10695585,
+      10695581,
+      10674410,
+      10674402,
+      10569020,
+      10569011,
+      10569009,
+      10569000,
+      10568996,
+      10275596
+    ],
+    "uuid": "47cea34e-9677-44f6-b9ca-f86ac633be59",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=47cea34e-9677-44f6-b9ca-f86ac633be59",
+    "file": "batch_18_uuid_47cea34e-9677-44f6-b9ca-f86ac633be59.zip",
+    "size_bytes": 5020
+  },
+  {
+    "batch": [
+      10275591,
+      10275587,
+      10275581,
+      10275575,
+      10275570,
+      10275564,
+      10275557,
+      10275508,
+      10275502,
+      9782240
+    ],
+    "uuid": "6fd98bb7-051e-4483-8396-b9ce1f78a3a9",
+    "state": "OK",
+    "link": "/api/client/statistics/report?UUID=6fd98bb7-051e-4483-8396-b9ce1f78a3a9",
+    "file": "batch_19_uuid_6fd98bb7-051e-4483-8396-b9ce1f78a3a9.zip",
+    "size_bytes": 5011
+  }
+]

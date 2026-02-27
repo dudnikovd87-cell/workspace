@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Ozon CEO Report Feb 2026</title>
+<style>
+body{font-family:Arial,sans-serif;margin:28px;color:#111}
+h1,h2{margin:0 0 10px} .muted{color:#555;font-size:12px}
+.kpi{display:flex;gap:14px;margin:14px 0 20px;flex-wrap:wrap}
+.card{border:1px solid #ddd;border-radius:8px;padding:10px 12px;min-width:180px}
+table{width:100%;border-collapse:collapse;font-size:11px} th,td{border:1px solid #ddd;padding:6px} th{background:#f3f3f3}
+.small{font-size:10px;color:#444}
+</style></head><body>
+<h1>Ozon — Отчёт для генерального директора</h1>
+<div class='muted'>Период: 01.02–22.02.2026 | Источник: Экономика магазина (Finance Transactions), разложено по артикулам</div>
+<div class='kpi'>
+<div class='card'><b>Net amount total</b><br>5,772,152.74 ₽</div>
+<div class='card'><b>Реклама (учтённая в SKU)</b><br>-1,998,297.11 ₽</div>
+<div class='card'><b>Возвраты/невыкупы</b><br>-1,336,747.34 ₽</div>
+<div class='card'><b>Артикулов в отчёте</b><br>26</div>
+</div>
+<h2>Executive summary</h2>
+<ul>
+<li>Ядро экономики формируют 3–5 артикулов с максимальным net amount.</li>
+<li>Ключевые просадки по марже — возвраты/невыкупы и рекламные списания по отдельным SKU.</li>
+<li>Есть убыточные позиции (negative amount) — требуется оперативная корректировка цены/карточки/логистики.</li>
+<li>Строка <b>UNALLOCATED__NO_SKU</b> в исходном CSV содержит операции без SKU-привязки; в поартикульных выводах она исключена, но в totals учтена.</li>
+</ul>
+<h2>Поартикульный P&L (без себестоимости, без налогов)</h2>
+<table>
+<tr><th>Артикул</th><th>Amount (net)</th><th>Начислено за продажи</th><th>Комиссия</th><th>Реклама</th><th>Возвраты/невыкупы</th><th>Статус</th><th>Вывод</th></tr>
+<tr><td>2650v2-rx580-32-1024-SL190</td><td>1,578,406</td><td>2,353,400</td><td>-719,646</td><td>-12,671</td><td>-128,368</td><td>OK</td><td>возвраты, реклама</td></tr><tr><td>2650v2-3070M-64-1024-SL190</td><td>1,435,015</td><td>2,136,421</td><td>-645,950</td><td>-11,311</td><td>-89,246</td><td>OK</td><td>возвраты, реклама</td></tr><tr><td>2650v2-3070M-16-512-K1</td><td>1,115,563</td><td>1,700,000</td><td>-513,000</td><td>-10,000</td><td>-213,000</td><td>OK</td><td>возвраты, реклама</td></tr><tr><td>3600-3070M-16-512-K1</td><td>401,475</td><td>582,330</td><td>-167,326</td><td>-2,912</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-3070M-32-1024-SL190</td><td>378,152</td><td>559,748</td><td>-168,994</td><td>-2,799</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-rx580-32-512-K1</td><td>302,371</td><td>466,672</td><td>-146,277</td><td>-2,716</td><td>-54,280</td><td>OK</td><td>возвраты, реклама</td></tr><tr><td>2650v2-3060-64-1024-SL190</td><td>294,223</td><td>433,644</td><td>-131,539</td><td>-2,168</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-5050-32-1024-SL190</td><td>292,347</td><td>423,126</td><td>-128,348</td><td>-2,116</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2667v4-5060-64-1024-Z5</td><td>275,909</td><td>406,000</td><td>-125,860</td><td>-2,030</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-3060-32-1024-SL190</td><td>270,551</td><td>396,111</td><td>-122,794</td><td>-1,981</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-rx580-64-1024-SL190</td><td>224,027</td><td>313,308</td><td>-81,626</td><td>-2,067</td><td>-69,000</td><td>OK</td><td>возвраты, реклама</td></tr><tr><td>2650v2-5050-64-1024-Z5</td><td>208,441</td><td>307,104</td><td>-92,131</td><td>-1,536</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-5050-64-1024-SL190</td><td>204,065</td><td>310,656</td><td>-99,303</td><td>-5,374</td><td>-533,375</td><td>OK</td><td>возвраты, реклама</td></tr><tr><td>2650v2-5050-32-1024-Z5</td><td>190,045</td><td>282,084</td><td>-87,446</td><td>-1,410</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-rx580-16-512-K1</td><td>162,165</td><td>238,334</td><td>-69,117</td><td>-1,192</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-2060s-32-1024-SL190</td><td>147,731</td><td>229,274</td><td>-68,782</td><td>-1,146</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2667v4-5060-32-1024-Z5</td><td>119,519</td><td>174,481</td><td>-54,089</td><td>-872</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-1660s-16-512-K1</td><td>98,906</td><td>172,968</td><td>-51,890</td><td>-1,297</td><td>-61,404</td><td>OK</td><td>возвраты, реклама</td></tr><tr><td>5600X-16-512-3070</td><td>95,900</td><td>140,000</td><td>-43,400</td><td>-700</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>750-512</td><td>51,090</td><td>70,652</td><td>-18,370</td><td>-353</td><td>0</td><td>OK</td><td>реклама</td></tr><tr><td>2650v2-gtx750-32-512</td><td>-1,298</td><td>0</td><td>0</td><td>0</td><td>0</td><td>LOSS</td><td>без явных рисков</td></tr><tr><td>2667v4-5060-32-1024-SL190</td><td>-1,862</td><td>0</td><td>0</td><td>0</td><td>0</td><td>LOSS</td><td>без явных рисков</td></tr><tr><td>5600g-16-512</td><td>-3,325</td><td>0</td><td>0</td><td>0</td><td>0</td><td>LOSS</td><td>без явных рисков</td></tr><tr><td>3600-3070M-32-1024-SL190</td><td>-3,621</td><td>0</td><td>0</td><td>-758</td><td>-104,586</td><td>LOSS</td><td>возвраты, реклама</td></tr><tr><td>2667v4-5060ti-64-1024-SL190</td><td>-4,894</td><td>0</td><td>0</td><td>0</td><td>0</td><td>LOSS</td><td>без явных рисков</td></tr><tr><td>2650-64</td><td>-82,319</td><td>-121,000</td><td>37,510</td><td>0</td><td>-83,490</td><td>LOSS</td><td>возвраты</td></tr>
+</table>
+<p class='small'>Примечание: Amount = фактическое влияние всех операций экономики магазина по артикулу за период.</p>
+</body></html>

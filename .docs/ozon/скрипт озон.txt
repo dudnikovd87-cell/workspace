@@ -1,0 +1,1408 @@
+// ============================
+// НАСТРОЙКИ (FB)
+// ============================
+
+const CONFIG_FB = {
+  // API ключи Ozon Performance
+  PERFORMANCE_CLIENT_ID: '92237531-1770884253085@advertising.performance.ozon.ru',
+  PERFORMANCE_CLIENT_SECRET: 'R5G0XpHvIOkPvb--A7AUZatzCC8e0jBmYhAuOynRBoljZNhaKprjArtgFGWNpuSfHKpjGl6KHq2kcqH1-g',
+
+  // API ключи Ozon Seller
+  SELLER_CLIENT_ID: '3170817',
+  SELLER_API_KEY: '1f03a7a6-8fd9-4068-8f13-1a629b5aa3c5',
+
+  // ID вашей таблицы Google Sheets
+  SPREADSHEET_ID: '1JeTGAxcxZvLVAXGrLtj7unIPiZwOX0xaoXZ6-rB_lDM',
+
+  // Названия листов
+  SHEETS: {
+    STATISTICS: 'REKLAMA_FB',
+    PRODUCTS: 'REKLAMA2_FB',
+    SALES_FUNNEL: 'VORONKA_FB',
+    ORDERS: 'POSTINGS_FB2',          // FBS
+    ORDERS_FBO: 'POSTINGS_FB',   // FBO (все поля)
+    MATCH: 'MATCH'
+  },
+
+  // Период выгрузки (дней назад)
+  DAYS_BACK: 1,
+
+  // Максимальное количество кампаний в одном запросе
+  MAX_CAMPAIGNS_PER_REQUEST: 10,
+
+  // Настройки FBO выгрузки (чтобы не упасть по времени)
+  FBO: {
+    PAGE_LIMIT: 1000,
+    MAX_POSTINGS: 5000,
+    SLEEP_MS: 120
+  }
+};
+
+// ============================
+// MENU / TRIGGERS (FB)
+// ============================
+
+// В Apps Script имя onOpen системное — его нельзя переименовать.
+// Чтобы не конфликтовать с другими onOpen, делаем "тонкую" прокладку.
+function onOpen() {
+  onOpen_FB();
+}
+
+function onOpen_FB() {
+  SpreadsheetApp.getUi()
+    .createMenu('Ozon (FB)')
+    .addItem('Export ALL (FB)', 'exportAllOzonData_FB')
+    .addSeparator()
+    .addItem('Export Statistics by Day (FB)', 'exportStatisticsByDay_FB')
+    .addItem('Export Statistics by Products (FB)', 'exportStatisticsByProducts_FB')
+    .addItem('Export Sales Funnel + MATCH cost (FB)', 'exportSalesFunnel_FB')
+    .addSeparator()
+    .addItem('Export Orders FBS → POSTINGS (FB)', 'exportOrdersFBS_FB')
+    .addItem('Export Orders FBO (all fields) → POSTINGS_FB (FB)', 'exportOrdersFBO_FB')
+    .addToUi();
+}
+
+// =====================================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (FB)
+// =====================================================
+
+function getPerformanceAccessToken_FB() {
+  const url = 'https://api-performance.ozon.ru/api/client/token';
+
+  const payload = {
+    client_id: CONFIG_FB.PERFORMANCE_CLIENT_ID,
+    client_secret: CONFIG_FB.PERFORMANCE_CLIENT_SECRET,
+    grant_type: 'client_credentials'
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    if (response.getResponseCode() === 200) {
+      const data = JSON.parse(response.getContentText());
+      if (data.access_token) {
+        Logger.log('✓ Токен получен');
+        return data.access_token;
+      }
+    }
+    Logger.log('✗ Ошибка получения токена');
+    return null;
+  } catch (e) {
+    Logger.log('✗ Исключение при получении токена: ' + e);
+    return null;
+  }
+}
+
+function ymdToUtcIsoFromMsk_FB_(ymd, hh, mm, ss, ms) {
+  // ymd: 'YYYY-MM-DD' interpreted as MSK (+03:00), then converted to UTC ISO string
+  const [Y, M, D] = String(ymd).split('-').map(Number);
+  const dtMsk = new Date(Date.UTC(Y, M - 1, D, hh, mm, ss, ms) - 3 * 60 * 60 * 1000);
+  return dtMsk.toISOString();
+}
+
+function getCampaignsList_FB(accessToken) {
+  const url = 'https://api-performance.ozon.ru/api/client/campaign';
+
+  const options = {
+    method: 'get',
+    headers: { 'Authorization': 'Bearer ' + accessToken },
+    muteHttpExceptions: true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    if (response.getResponseCode() === 200) {
+      const data = JSON.parse(response.getContentText());
+      if (data.list && data.list.length > 0) {
+        Logger.log('✓ Найдено кампаний: ' + data.list.length);
+        return data.list.map(campaign => campaign.id);
+      }
+    }
+    return [];
+  } catch (e) {
+    Logger.log('✗ Ошибка получения кампаний: ' + e);
+    return [];
+  }
+}
+
+function splitIntoBatches_FB(array, batchSize) {
+  const batches = [];
+  for (let i = 0; i < array.length; i += batchSize) {
+    batches.push(array.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+function getDateRange_FB() {
+  const now = new Date();
+
+  // конец периода = ВЧЕРА (а не today)
+  const end = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+  // начало периода = end - (DAYS_BACK - 1) дней
+  const start = new Date(end.getTime() - (CONFIG_FB.DAYS_BACK - 1) * 24 * 60 * 60 * 1000);
+
+  return {
+    from: Utilities.formatDate(start, 'GMT+3', 'yyyy-MM-dd'),
+    to: Utilities.formatDate(end, 'GMT+3', 'yyyy-MM-dd')
+  };
+}
+
+function writeToSheet_FB(sheetName, data, headers) {
+  const ss = SpreadsheetApp.openById(CONFIG_FB.SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(sheetName);
+
+  if (!sheet) sheet = ss.insertSheet(sheetName);
+
+  sheet.clearContents();
+
+  if (headers && headers.length > 0) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+
+  if (data && data.length > 0) {
+    const maxRows = 50000;
+    const dataToWrite = data.slice(0, maxRows);
+
+    if (data.length > maxRows) {
+      Logger.log('⚠ Обрезано до ' + maxRows + ' строк (лимит Google Sheets)');
+    }
+
+    sheet.getRange(2, 1, dataToWrite.length, dataToWrite[0].length).setValues(dataToWrite);
+    Logger.log('✓ Записано строк: ' + dataToWrite.length);
+  }
+
+  if (headers && headers.length) sheet.autoResizeColumns(1, headers.length);
+}
+
+function appendToSheet_FB(sheetName, data, headers) {
+  const ss = SpreadsheetApp.openById(CONFIG_FB.SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(sheetName);
+  if (!sheet) sheet = ss.insertSheet(sheetName);
+
+  if (!data || !data.length) return;
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+
+  // Если лист пустой — пишем заголовки один раз
+  if (lastRow === 0 || (lastRow === 1 && lastCol === 0)) {
+    if (headers && headers.length) {
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+      sheet.setFrozenRows(1);
+    }
+  }
+
+  // Если заголовки уже есть — НЕ ТРОГАЕМ их вообще
+  const startRow = Math.max(sheet.getLastRow(), 1) + 1; // после заголовка
+  sheet.getRange(startRow, 1, data.length, data[0].length).setValues(data);
+
+  Logger.log(`✓ ${sheetName}: добавлено строк: ${data.length}`);
+}
+
+
+// =====================================================
+// MATCH: себестоимость по SKU + "эффективной дате" (FB)
+// =====================================================
+
+function parseYMDToDate_FB_(ymd) {
+  if (!ymd) return null;
+  const parts = String(ymd).split('-');
+  if (parts.length !== 3) return null;
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+function normalizeDateValue_FB_(v) {
+  if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+
+  const s = String(v || '').trim();
+  if (!s) return null;
+
+  // dd.MM.yyyy
+  const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+
+  // yyyy-MM-dd
+  const d2 = parseYMDToDate_FB_(s);
+  if (d2) return d2;
+
+  return null;
+}
+
+function loadMatchCosts_FB_() {
+  const ss = SpreadsheetApp.openById(CONFIG_FB.SPREADSHEET_ID);
+  const sh = ss.getSheetByName(CONFIG_FB.SHEETS.MATCH);
+  if (!sh) throw new Error(`Лист ${CONFIG_FB.SHEETS.MATCH} не найден`);
+
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if (lastRow < 2 || lastCol < 4) return { dates: [], bySku: {} };
+
+  const values = sh.getRange(1, 1, lastRow, lastCol).getValues();
+
+  // D1:lastCol
+  const headerRaw = values[0].slice(3);
+  const headerDates = headerRaw.map(normalizeDateValue_FB_);
+
+  // Собираем индексы валидных дат и массив дат
+  const dateColIdx = [];
+  const dates = [];
+  for (let i = 0; i < headerDates.length; i++) {
+    if (headerDates[i]) {
+      dateColIdx.push(i);
+      dates.push(headerDates[i]);
+    }
+  }
+  if (!dates.length) return { dates: [], bySku: {} };
+
+  const bySku = {};
+  for (let r = 1; r < values.length; r++) {
+    const sku = values[r][0];
+    if (!sku) continue;
+
+    const rowCostsRaw = values[r].slice(3);
+    const costs = new Array(dates.length);
+
+    for (let j = 0; j < dateColIdx.length; j++) {
+      const srcIdx = dateColIdx[j];
+      costs[j] = rowCostsRaw[srcIdx];
+    }
+
+    bySku[String(sku)] = costs;
+  }
+
+  return { dates, bySku };
+}
+
+function findEffectiveDateIndex_FB_(datesArr, operationDate) {
+  if (!datesArr || !datesArr.length) return -1;
+  if (!(operationDate instanceof Date)) return 0;
+
+  const op = new Date(operationDate.getFullYear(), operationDate.getMonth(), operationDate.getDate()).getTime();
+  const first = datesArr[0].getTime();
+  if (op <= first) return 0;
+
+  // бинарный поиск: последний <= op
+  let lo = 0;
+  let hi = datesArr.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const t = datesArr[mid].getTime();
+    if (t === op) return mid;
+    if (t < op) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return Math.max(0, hi);
+}
+
+function getCostForSkuAndDate_FB_(matchCache, sku, dateStrYMD) {
+  if (!matchCache || !matchCache.dates || !matchCache.dates.length) return '';
+  const skuKey = String(sku || '');
+  if (!skuKey) return '';
+
+  const costs = matchCache.bySku[skuKey];
+  if (!costs) return '';
+
+  const opDate = parseYMDToDate_FB_(dateStrYMD);
+  const idx = findEffectiveDateIndex_FB_(matchCache.dates, opDate);
+  if (idx < 0) return '';
+
+  const v = costs[idx];
+  return v === undefined ? '' : v;
+}
+
+// =====================================================
+// ОБЩИЕ ФУНКЦИИ ДЛЯ PERFORMANCE API (FB)
+// =====================================================
+
+function generatePerformanceReport_FB(dateFrom, dateTo, accessToken, campaignIds, groupBy) {
+  const batches = splitIntoBatches_FB(campaignIds, CONFIG_FB.MAX_CAMPAIGNS_PER_REQUEST);
+  Logger.log('Разбито на ' + batches.length + ' батч(ей)');
+
+  let allRows = [];
+
+  for (let i = 0; i < batches.length; i++) {
+    Logger.log('Батч ' + (i + 1) + '/' + batches.length);
+
+    const batchData = requestPerformanceReport_FB(dateFrom, dateTo, accessToken, batches[i], groupBy);
+
+    if (batchData && batchData.rows) {
+      allRows = allRows.concat(batchData.rows);
+      Logger.log('  → Получено: ' + batchData.rows.length + ' строк');
+    } else {
+      Logger.log('  → Нет данных');
+    }
+
+    if (i < batches.length - 1) Utilities.sleep(3000);
+  }
+
+  Logger.log('Итого собрано: ' + allRows.length + ' строк');
+  return allRows.length > 0 ? { rows: allRows } : null;
+}
+
+function requestPerformanceReport_FB(dateFrom, dateTo, accessToken, campaignIds, groupBy) {
+  const url = 'https://api-performance.ozon.ru/api/client/statistics/json';
+
+  const payload = {
+    campaigns: campaignIds,
+    dateFrom: dateFrom,
+    dateTo: dateTo,
+    groupBy: groupBy
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'Authorization': 'Bearer ' + accessToken },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+
+    if (responseCode === 200) {
+      const data = JSON.parse(response.getContentText());
+      if (data.UUID) return waitForReport_FB(data.UUID, accessToken);
+      return data;
+    } else if (responseCode === 429) {
+      Logger.log('  → Лимит запросов, повтор через 5 сек');
+      Utilities.sleep(5000);
+      return requestPerformanceReport_FB(dateFrom, dateTo, accessToken, campaignIds, groupBy);
+    } else {
+      Logger.log('  → Ошибка: код ' + responseCode);
+      return null;
+    }
+  } catch (e) {
+    Logger.log('  → Исключение: ' + e);
+    return null;
+  }
+}
+
+function waitForReport_FB(uuid, accessToken) {
+  const url = 'https://api-performance.ozon.ru/api/client/statistics/' + uuid;
+
+  const options = {
+    method: 'get',
+    headers: { 'Authorization': 'Bearer ' + accessToken },
+    muteHttpExceptions: true
+  };
+
+  let attempts = 0;
+  const maxAttempts = 20;
+
+  while (attempts < maxAttempts) {
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      const responseCode = response.getResponseCode();
+
+      if (responseCode === 200) {
+        const data = JSON.parse(response.getContentText());
+        if (data.state === 'OK' && data.link) return downloadReport_FB(data.link, accessToken);
+      }
+    } catch (e) {
+      Logger.log('  → Попытка ' + (attempts + 1) + ' не удалась');
+    }
+
+    Utilities.sleep(3000);
+    attempts++;
+  }
+
+  Logger.log('  → Отчёт не готов после ' + maxAttempts + ' попыток');
+  return null;
+}
+
+function downloadReport_FB(link, accessToken) {
+  const url = 'https://api-performance.ozon.ru' + link;
+
+  const options = {
+    method: 'get',
+    headers: { 'Authorization': 'Bearer ' + accessToken },
+    muteHttpExceptions: true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+
+    if (response.getResponseCode() === 200) {
+      const contentType = response.getHeaders()['Content-Type'] || '';
+
+      if (contentType.includes('application/json')) {
+        const data = JSON.parse(response.getContentText());
+
+        let allRows = [];
+        for (let campaignId in data) {
+          if (data[campaignId].report && data[campaignId].report.rows) {
+            const campaignRows = data[campaignId].report.rows;
+
+            campaignRows.forEach(row => {
+              row.campaignId = campaignId;
+              row.campaignTitle = data[campaignId].title || '';
+            });
+
+            allRows = allRows.concat(campaignRows);
+          }
+        }
+
+        return allRows.length > 0 ? { rows: allRows } : null;
+      }
+    }
+
+    return null;
+  } catch (e) {
+    Logger.log('  → Ошибка загрузки: ' + e);
+    return null;
+  }
+}
+
+// ============================
+// 1. ВЫГРУЗКА СТАТИСТИКИ ПО ДНЯМ (FB)
+// ============================
+
+function exportStatisticsByDay_FB() {
+  Logger.log('\n=== ВЫГРУЗКА СТАТИСТИКИ ПО ДНЯМ (FB) ===');
+
+  const dates = getDateRange_FB();
+  Logger.log('Период: ' + dates.from + ' — ' + dates.to);
+
+  const accessToken = getPerformanceAccessToken_FB();
+  if (!accessToken) {
+    Logger.log('✗ Не удалось получить токен');
+    return;
+  }
+
+  const campaignIds = getCampaignsList_FB(accessToken);
+  if (campaignIds.length === 0) {
+    Logger.log('✗ Нет кампаний');
+    return;
+  }
+
+  const stats = generatePerformanceReport_FB(dates.from, dates.to, accessToken, campaignIds, 'DATE');
+
+  if (stats && stats.rows && stats.rows.length > 0) {
+    const firstRow = stats.rows[0];
+    const headers = Object.keys(firstRow);
+
+    const data = stats.rows.map(row => headers.map(h => (row[h] !== undefined ? row[h] : '')));
+
+    appendToSheet_FB(CONFIG_FB.SHEETS.STATISTICS, data, headers);
+    Logger.log('✓ ГОТОВО: Статистика по дням записана (FB)');
+  } else {
+    Logger.log('⚠ Нет данных за период');
+  }
+}
+
+// ============================
+// 2. ВЫГРУЗКА СТАТИСТИКИ ПО ТОВАРАМ (FB)
+// ============================
+
+function exportStatisticsByProducts_FB() {
+  Logger.log('\n=== ВЫГРУЗКА СТАТИСТИКИ ПО ТОВАРАМ (FB) ===');
+
+  const dates = getDateRange_FB();
+  Logger.log('Период: ' + dates.from + ' — ' + dates.to);
+
+  const accessToken = getPerformanceAccessToken_FB();
+  if (!accessToken) {
+    Logger.log('✗ Не удалось получить токен');
+    return;
+  }
+
+  const campaignIds = getCampaignsList_FB(accessToken);
+  if (campaignIds.length === 0) {
+    Logger.log('✗ Нет кампаний');
+    return;
+  }
+
+  const stats = generatePerformanceReport_FB(dates.from, dates.to, accessToken, campaignIds, 'DATE_SKU');
+
+  if (stats && stats.rows && stats.rows.length > 0) {
+    const firstRow = stats.rows[0];
+    const headers = Object.keys(firstRow);
+
+    const data = stats.rows.map(row => headers.map(h => (row[h] !== undefined ? row[h] : '')));
+
+    appendToSheet_FB(CONFIG_FB.SHEETS.PRODUCTS, data, headers);
+    Logger.log('✓ ГОТОВО: Статистика по товарам записана (FB)');
+  } else {
+    Logger.log('⚠ Нет данных за период');
+  }
+}
+
+// ============================
+// 3. ВЫГРУЗКА ВОРОНКИ ПРОДАЖ (+ СЕБЕСТОИМОСТЬ ИЗ MATCH) (FB)
+// ============================
+
+function exportSalesFunnel_FB() {
+  Logger.log('\n=== ВЫГРУЗКА ПОЛНОЙ ВОРОНКИ ПРОДАЖ (FB) ===');
+
+  const dates = getDateRange_FB();
+  Logger.log('Период: ' + dates.from + ' — ' + dates.to);
+
+  const url = 'https://api-seller.ozon.ru/v1/analytics/data';
+
+  const metrics1 = [
+    'revenue',
+    'ordered_units',
+    'hits_view_search',
+    'hits_view_pdp',
+    'hits_view',
+    'hits_tocart_search',
+    'hits_tocart_pdp',
+    'hits_tocart',
+    'session_view_search',
+    'session_view_pdp',
+    'session_view',
+    'conv_tocart_search',
+    'conv_tocart_pdp',
+    'conv_tocart'
+  ];
+
+  const metrics2 = [
+    'returns',
+    'cancellations',
+    'delivered_units',
+    'position_category'
+  ];
+
+  const data1 = fetchAnalyticsData_FB(url, dates, metrics1);
+  const data2 = fetchAnalyticsData_FB(url, dates, metrics2);
+
+  if (data1.length > 0) {
+    const combinedData = mergeAnalyticsData_FB(data1, data2);
+
+    // Загружаем MATCH один раз и добавляем себестоимость
+    const matchCache = loadMatchCosts_FB_();
+
+    const combinedDataWithCost = combinedData.map(row => {
+      const dateStr = row[0]; // 'YYYY-MM-DD'
+      const sku = row[1];
+      const cost = getCostForSkuAndDate_FB_(matchCache, sku, dateStr);
+      return row.concat([cost]);
+    });
+
+    const headers = [
+      'Дата',
+      'SKU',
+      'Выручка',
+      'Заказано товаров',
+      'Показы (поиск)',
+      'Показы (карточка)',
+      'Всего показов',
+      'В корзину (поиск)',
+      'В корзину (карточка)',
+      'Всего в корзину',
+      'Сессии (поиск)',
+      'Сессии (карточка)',
+      'Всего сессий',
+      'Конверсия в корзину (поиск), %',
+      'Конверсия в корзину (карточка), %',
+      'Общая конверсия в корзину, %',
+      'Возвращено товаров',
+      'Отменено товаров',
+      'Доставлено товаров',
+      'Позиция в категории',
+      'Себестоимость'
+    ];
+
+    appendToSheet_FB(CONFIG_FB.SHEETS.SALES_FUNNEL, combinedDataWithCost, headers);
+    Logger.log('✓ ГОТОВО: Воронка + себестоимость записаны (FB)');
+  } else {
+    Logger.log('⚠ Нет данных за период');
+  }
+}
+
+// ============================
+// 4. ВЫГРУЗКА ЗАКАЗОВ FBS (FB)
+// ============================
+
+function exportOrdersFBS_FB() {
+  Logger.log('\n=== ВЫГРУЗКА ЗАКАЗОВ FBS (FB) ===');
+
+  const dates = getDateRange_FB();
+  Logger.log('Период: ' + dates.from + ' — ' + dates.to);
+
+  const url = 'https://api-seller.ozon.ru/v3/posting/fbs/list';
+
+  let allOrders = [];
+  let offset = 0;
+  const limit = 1000;
+  let hasNext = true;
+
+  while (hasNext) {
+    const payload = {
+      dir: 'ASC',
+      filter: {
+        since: dates.from + 'T00:00:00.000Z',
+        to: dates.to + 'T23:59:59.999Z'
+      },
+      limit: limit,
+      offset: offset,
+      with: {
+        analytics_data: true,
+        barcodes: true,
+        financial_data: true,
+        translit: true
+      }
+    };
+
+    const options = {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        'Client-Id': CONFIG_FB.SELLER_CLIENT_ID,
+        'Api-Key': CONFIG_FB.SELLER_API_KEY
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+
+      if (response.getResponseCode() === 200) {
+        const data = JSON.parse(response.getContentText());
+
+        if (data.result && data.result.postings && data.result.postings.length > 0) {
+          data.result.postings.forEach(posting => {
+            posting.products.forEach(product => {
+              const financialData = posting.financial_data || {};
+              const analyticsData = posting.analytics_data || {};
+              const deliveryMethod = posting.delivery_method || {};
+              const cancellation = posting.cancellation || {};
+              const customer = posting.customer || {};
+              const addressee = posting.addressee || {};
+
+              let financialProduct = {};
+              if (financialData.products && financialData.products.length > 0) {
+                const productFinance = financialData.products.find(p => p.product_id == product.sku);
+                if (productFinance) financialProduct = productFinance;
+              }
+
+              let upperBarcode = '';
+              let lowerBarcode = '';
+              if (posting.barcodes) {
+                upperBarcode = posting.barcodes.upper_barcode || '';
+                lowerBarcode = posting.barcodes.lower_barcode || '';
+              }
+
+              allOrders.push([
+                posting.posting_number || '',
+                posting.order_id || '',
+                posting.order_number || '',
+                posting.status || '',
+                posting.substatus || '',
+                posting.shipment_date || '',
+                posting.shipment_date_without_delay || '',
+                posting.delivering_date || '',
+                posting.in_process_at || '',
+                posting.pickup_code_verified_at || '',
+                product.sku || '',
+                product.offer_id || '',
+                product.name || '',
+                product.quantity || 0,
+                product.price || 0,
+                product.currency_code || '',
+                deliveryMethod.id || '',
+                deliveryMethod.name || '',
+                deliveryMethod.warehouse || '',
+                deliveryMethod.tpl_provider || '',
+                posting.tracking_number || '',
+                posting.tpl_integration_type || '',
+                posting.is_express || false,
+                posting.quantum_id || 0,
+                posting.require_blr_traceable_attrs || false,
+                product.is_blr_traceable || false,
+                product.is_marketplace_buyout || false,
+                cancellation.cancel_reason || '',
+                cancellation.cancel_reason_id || '',
+                cancellation.cancellation_type || '',
+                cancellation.cancelled_after_ship || false,
+                cancellation.affect_cancellation_rating || false,
+                cancellation.cancellation_initiator || '',
+                customer.customer_id || '',
+                customer.name || '',
+                customer.phone || '',
+                customer.email || '',
+                addressee.name || '',
+                addressee.phone || '',
+                (posting.addressee && posting.addressee.address ? posting.addressee.address.address_tail : ''),
+                (posting.addressee && posting.addressee.address ? posting.addressee.address.city : ''),
+                (posting.addressee && posting.addressee.address ? posting.addressee.address.region : ''),
+                financialData.posting_services ? JSON.stringify(financialData.posting_services) : '',
+                financialProduct.commission_amount || 0,
+                financialProduct.commission_percent || 0,
+                financialProduct.payout || 0,
+                financialProduct.old_price || 0,
+                financialProduct.price || 0,
+                financialProduct.total_discount_value || 0,
+                financialProduct.total_discount_percent || 0,
+                financialProduct.customer_price || 0,
+                (financialProduct.actions ? financialProduct.actions.join('; ') : ''),
+                analyticsData.region || '',
+                analyticsData.city || '',
+                analyticsData.delivery_type || '',
+                analyticsData.is_premium || false,
+                analyticsData.payment_type_group_name || '',
+                analyticsData.warehouse_id || '',
+                analyticsData.warehouse_name || '',
+                upperBarcode,
+                lowerBarcode,
+                (posting.legal_info ? posting.legal_info.company_name : ''),
+                (posting.legal_info ? posting.legal_info.inn : ''),
+                (posting.legal_info ? posting.legal_info.kpp : ''),
+                (product.imei && product.imei.length > 0 ? product.imei.join(', ') : '')
+              ]);
+            });
+          });
+
+          Logger.log('  Получено заказов: ' + data.result.postings.length);
+
+          hasNext = data.result.has_next;
+          if (hasNext) {
+            offset += limit;
+            Utilities.sleep(1000);
+          }
+        } else {
+          hasNext = false;
+        }
+      } else {
+        Logger.log('✗ Ошибка API: ' + response.getResponseCode());
+        hasNext = false;
+      }
+    } catch (e) {
+      Logger.log('✗ Исключение: ' + e);
+      hasNext = false;
+    }
+  }
+
+  if (allOrders.length > 0) {
+    const headers = [
+      'Номер отправления',
+      'ID заказа',
+      'Номер заказа',
+      'Статус',
+      'Подстатус',
+      'Дата отгрузки',
+      'Дата отгрузки без задержки',
+      'Дата доставки',
+      'Дата начала обработки',
+      'Дата подтверждения кода',
+      'SKU товара',
+      'Артикул продавца',
+      'Название товара',
+      'Количество',
+      'Цена',
+      'Валюта',
+      'ID способа доставки',
+      'Способ доставки',
+      'Склад',
+      'Служба доставки',
+      'Трек-номер',
+      'Тип интеграции',
+      'Экспресс-доставка',
+      'Quantum ID',
+      'Требуется маркировка БЛР',
+      'Товар БЛР',
+      'Выкуп маркетплейса',
+      'Причина отмены',
+      'ID причины отмены',
+      'Тип отмены',
+      'Отменен после отгрузки',
+      'Влияет на рейтинг',
+      'Инициатор отмены',
+      'ID покупателя',
+      'Имя покупателя',
+      'Телефон покупателя',
+      'Email покупателя',
+      'ФИО получателя',
+      'Телефон получателя',
+      'Адрес доставки',
+      'Город доставки',
+      'Регион доставки',
+      'Финансовые услуги',
+      'Комиссия (сумма)',
+      'Комиссия (%)',
+      'Выплата продавцу',
+      'Старая цена',
+      'Цена продажи',
+      'Скидка (сумма)',
+      'Скидка (%)',
+      'Цена для покупателя',
+      'Примененные акции',
+      'Регион аналитики',
+      'Город аналитики',
+      'Тип доставки аналитики',
+      'Premium покупатель',
+      'Тип оплаты',
+      'ID склада аналитики',
+      'Склад аналитики',
+      'Верхний штрихкод',
+      'Нижний штрихкод',
+      'Название компании',
+      'ИНН',
+      'КПП',
+      'IMEI'
+    ];
+
+    appendToSheet_FB(CONFIG_FB.SHEETS.ORDERS, allOrders, headers);
+    Logger.log('✓ ГОТОВО: Заказы FBS записаны (FB) (' + allOrders.length + ' строк)');
+  } else {
+    Logger.log('⚠ Нет заказов за период');
+  }
+}
+
+// =====================================================
+// FBO: ВЫГРУЗКА ВСЕХ ПОЛЕЙ В POSTINGS_FB (FB)
+// - /v2/posting/fbo/list
+// - /v2/posting/fbo/get (обогащение)
+// - flatten JSON → колонки
+// =====================================================
+
+function exportOrdersFBO_FB() {
+  Logger.log('\n=== ВЫГРУЗКА ЗАКАЗОВ FBO (ALL FIELDS) (FB) ===');
+
+  const dates = getDateRange_FB();
+  Logger.log('Период (по МСК-дням): ' + dates.from + ' — ' + dates.to);
+
+  // Границы дня по МСК → переводим в UTC ISO
+  const sinceIso = ymdToUtcIsoFromMsk_FB_(dates.from, 0, 0, 0, 0);
+  const toIso    = ymdToUtcIsoFromMsk_FB_(dates.to, 23, 59, 59, 999);
+
+  Logger.log('sinceIso UTC: ' + sinceIso);
+  Logger.log('toIso   UTC: ' + toIso);
+
+  const list = fetchFboListAll_FB_(sinceIso, toIso);
+
+if (!list.length) {
+  Logger.log('⚠ Нет FBO отправлений за период — ничего не добавляю (FB)');
+  return;
+}
+
+
+  const detailed = [];
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i] || {};
+    const postingNumber = p.posting_number || p.postingNumber || p.posting_number_str;
+
+    if (!postingNumber) {
+      detailed.push(p);
+      continue;
+    }
+
+    try {
+      const det = ozonSellerRequest_FB_('/v2/posting/fbo/get', {
+        posting_number: postingNumber,
+        with: {
+          analytics_data: true,
+          financial_data: true,
+          additional_data: true,
+          customer_data: true,
+          jewelry_codes: true,
+        }
+      });
+
+      detailed.push(det.result || det);
+    } catch (e) {
+      detailed.push({
+        posting_number: postingNumber,
+        __error: String(e),
+        __list_payload: p
+      });
+    }
+
+    if (CONFIG_FB.FBO.SLEEP_MS) Utilities.sleep(CONFIG_FB.FBO.SLEEP_MS);
+  }
+
+  const expanded = [];
+
+detailed.forEach(posting => {
+  const base = Object.assign({}, posting);
+
+  const financialData = posting.financial_data || {};
+  const products = financialData.products || [];
+
+  // если products нет — всё равно пишем строку
+  if (!products.length) {
+    expanded.push(posting);
+    return;
+  }
+
+  products.forEach(prod => {
+    const clone = JSON.parse(JSON.stringify(posting));
+
+    // удаляем массив products чтобы не дублировался
+    if (clone.financial_data) {
+      delete clone.financial_data.products;
+    }
+
+    // кладём product в отдельный блок
+    clone.financial_product = prod;
+
+    expanded.push(clone);
+  });
+});
+
+// дальше уже flatten
+const flatRows = expanded.map(obj => flattenObject_FB_(obj));
+
+  const headers = buildHeaders_FB_(flatRows);
+  const values = flatRows.map(row => headers.map(h => normalizeCell_FB_(row[h])));
+
+  appendToSheet_FB(CONFIG_FB.SHEETS.ORDERS_FBO, values, headers);
+  Logger.log(`✓ ГОТОВО: FBO выгружено в ${CONFIG_FB.SHEETS.ORDERS_FBO} (FB). Строк: ${values.length}`);
+}
+
+function ozonSellerRequestRaw_FB_(path, payloadObj) {
+  const url = 'https://api-seller.ozon.ru' + path;
+
+  const res = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Client-Id': CONFIG_FB.SELLER_CLIENT_ID,
+      'Api-Key': CONFIG_FB.SELLER_API_KEY
+    },
+    payload: JSON.stringify(payloadObj || {}),
+    muteHttpExceptions: true
+  });
+
+  const code = res.getResponseCode();
+  const text = res.getContentText();
+  let json = null;
+  try { json = JSON.parse(text); } catch (e) {}
+
+  return { code, text, json };
+}
+
+function DIAG_OZON_POSTINGS_FB() {
+  Logger.log('=== DIAG_OZON_POSTINGS_FB ===');
+  Logger.log('Client-Id in use: ' + CONFIG_FB.SELLER_CLIENT_ID);
+
+  // максимально широкий период, чтобы исключить дату
+  const since = '2000-01-01T00:00:00.000Z';
+  const to = new Date().toISOString();
+
+  // FBO list
+  const fbo = ozonSellerRequestRaw_FB_('/v2/posting/fbo/list', {
+    dir: 'ASC',
+    filter: { since: since, to: to },
+    limit: 5,
+    offset: 0,
+    translit: true,
+    with: { analytics_data: true, financial_data: true, additional_data: true, customer_data: true }
+  });
+
+  Logger.log('FBO HTTP code: ' + fbo.code);
+  Logger.log('FBO raw (first 1500 chars): ' + String(fbo.text).slice(0, 1500));
+
+  // FBS list (для сравнения — часто сразу видно, что заказы вообще не FBO)
+  const fbs = ozonSellerRequestRaw_FB_('/v3/posting/fbs/list', {
+    dir: 'ASC',
+    filter: { since: since, to: to },
+    limit: 5,
+    offset: 0,
+    with: { analytics_data: true, financial_data: true, barcodes: true, translit: true }
+  });
+
+  Logger.log('FBS HTTP code: ' + fbs.code);
+  Logger.log('FBS raw (first 1500 chars): ' + String(fbs.text).slice(0, 1500));
+
+  // Если FBO вдруг вернул postings — попробуем один get
+  const postings = fbo.json && fbo.json.result && fbo.json.result.postings ? fbo.json.result.postings : [];
+  if (postings.length) {
+    const pn = postings[0].posting_number;
+    Logger.log('Found FBO posting_number: ' + pn);
+
+    const fboGet = ozonSellerRequestRaw_FB_('/v2/posting/fbo/get', {
+      posting_number: pn,
+      with: { analytics_data: true, financial_data: true, additional_data: true, customer_data: true }
+    });
+
+    Logger.log('FBO GET HTTP code: ' + fboGet.code);
+    Logger.log('FBO GET raw (first 1500 chars): ' + String(fboGet.text).slice(0, 1500));
+  } else {
+    Logger.log('No FBO postings in response.');
+  }
+}
+
+
+function fetchFboListAll_FB_(sinceIso, toIso) {
+  // режем на окна, чтобы не получить PERIOD_IS_TOO_LONG/молчаливые пустые ответы
+  const windowDays = 7;
+
+  const out = [];
+  const from = new Date(sinceIso);
+  const to = new Date(toIso);
+
+  let curStart = new Date(from);
+
+  while (curStart <= to) {
+    const curEnd = new Date(curStart.getTime() + (windowDays * 24 * 60 * 60 * 1000) - 1);
+    if (curEnd > to) curEnd.setTime(to.getTime());
+
+    Logger.log(`FBO window: ${curStart.toISOString()} → ${curEnd.toISOString()}`);
+
+    const chunk = fetchFboListPaged_FB_(curStart.toISOString(), curEnd.toISOString());
+    Logger.log(`FBO window rows: ${chunk.length}`);
+
+    out.push(...chunk);
+
+    // следующий день после curEnd
+    curStart = new Date(curEnd.getTime() + 1);
+    if (out.length >= CONFIG_FB.FBO.MAX_POSTINGS) break;
+  }
+
+  return out.slice(0, CONFIG_FB.FBO.MAX_POSTINGS);
+}
+
+function fetchFboListPaged_FB_(sinceIso, toIso) {
+  const out = [];
+  let offset = 0;
+
+  while (true) {
+    const payload = {
+      dir: 'ASC',
+      filter: {
+        since: sinceIso,
+        to: toIso
+      },
+      limit: CONFIG_FB.FBO.PAGE_LIMIT,
+      offset: offset,
+      translit: true,
+      with: {
+        analytics_data: true,
+        financial_data: true,
+        additional_data: true,
+        customer_data: true,
+        jewelry_codes: true
+      }
+    };
+
+    const resp = ozonSellerRequest_FB_('/v2/posting/fbo/list', payload);
+
+    // ✅ поддержка двух форматов:
+    // 1) {result: []}
+    // 2) {result: {postings: []}}
+    const postings = extractFboPostings_FB_(resp);
+
+    if (!postings.length) break;
+
+    out.push(...postings);
+    offset += postings.length;
+
+    if (postings.length < CONFIG_FB.FBO.PAGE_LIMIT) break;
+    if (out.length >= CONFIG_FB.FBO.MAX_POSTINGS) break;
+
+    if (CONFIG_FB.FBO.SLEEP_MS) Utilities.sleep(CONFIG_FB.FBO.SLEEP_MS);
+  }
+
+  return out;
+}
+
+function extractFboPostings_FB_(resp) {
+  if (!resp) return [];
+
+  const r = resp.result;
+
+  // Формат A: result = []
+  if (Array.isArray(r)) return r;
+
+  // Формат B: result = { postings: [] }
+  if (r && Array.isArray(r.postings)) return r.postings;
+
+  return [];
+}
+
+function DIAG_FBO_LAST_30_FB() {
+  const to = new Date();
+  const from = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const resp = ozonSellerRequest_FB_('/v2/posting/fbo/list', {
+    dir: 'ASC',
+    filter: { since: from.toISOString(), to: to.toISOString() },
+    limit: 5,
+    offset: 0,
+    translit: true,
+    with: { analytics_data: true, financial_data: true }
+  });
+
+  const postings = extractFboPostings_FB_(resp);
+  Logger.log('FBO parsed postings length: ' + postings.length);
+  Logger.log('FBO parsed first item (if any): ' + (postings[0] ? JSON.stringify(postings[0]).slice(0, 800) : 'none'));
+}
+
+
+
+function ozonSellerRequest_FB_(path, payloadObj) {
+  const url = 'https://api-seller.ozon.ru' + path;
+
+  const res = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: {
+      'Client-Id': CONFIG_FB.SELLER_CLIENT_ID,
+      'Api-Key': CONFIG_FB.SELLER_API_KEY
+    },
+    payload: JSON.stringify(payloadObj || {}),
+    muteHttpExceptions: true
+  });
+
+  const code = res.getResponseCode();
+  const text = res.getContentText();
+
+  let json;
+  try {
+    json = JSON.parse(text);
+  } catch (e) {
+    throw new Error(`Ozon Seller API HTTP ${code} (non-JSON): ${text.slice(0, 500)}`);
+  }
+
+  if (code >= 300) {
+    throw new Error(`Ozon Seller API HTTP ${code}: ${JSON.stringify(json).slice(0, 1000)}`);
+  }
+
+  if (json && json.error) {
+    throw new Error(`Ozon Seller API error: ${JSON.stringify(json).slice(0, 1000)}`);
+  }
+
+  return json;
+}
+
+function flattenObject_FB_(obj) {
+  const out = {};
+  walkFlatten_FB_(obj, '', out);
+  return out;
+}
+
+function walkFlatten_FB_(val, prefix, out) {
+  if (val === null || val === undefined) {
+    out[prefix] = '';
+    return;
+  }
+
+  const t = typeof val;
+
+  if (t === 'string' || t === 'number' || t === 'boolean') {
+    out[prefix] = val;
+    return;
+  }
+
+  if (val instanceof Date) {
+    out[prefix] = val.toISOString();
+    return;
+  }
+
+  if (Array.isArray(val)) {
+    out[prefix] = safeJson_FB_(val);
+    return;
+  }
+
+  if (t === 'object') {
+    const keys = Object.keys(val);
+    if (keys.length === 0) {
+      out[prefix] = '';
+      return;
+    }
+
+    for (const k of keys) {
+      const nextPrefix = prefix ? `${prefix}.${k}` : k;
+      walkFlatten_FB_(val[k], nextPrefix, out);
+    }
+    return;
+  }
+
+  out[prefix] = String(val);
+}
+
+function safeJson_FB_(v) {
+  try {
+    return JSON.stringify(v);
+  } catch (e) {
+    return String(v);
+  }
+}
+
+function normalizeCell_FB_(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return v;
+  return safeJson_FB_(v);
+}
+
+function buildHeaders_FB_(rows) {
+  const set = new Set();
+  for (const r of rows) {
+    for (const k in r) set.add(k);
+  }
+
+  const all = Array.from(set);
+
+  const preferred = [
+    'posting_number',
+    'order_id',
+    'order_number',
+    'status',
+    'substatus',
+    'in_process_at',
+    'shipment_date',
+    'delivering_date',
+    'created_at'
+  ];
+
+  const prefSet = new Set(preferred);
+  const head = preferred.filter(k => set.has(k));
+  const tail = all.filter(k => !prefSet.has(k)).sort();
+
+  return head.concat(tail);
+}
+
+// =====================================================
+// Analytics data (FB)
+// =====================================================
+
+function fetchAnalyticsData_FB(url, dates, metrics) {
+  let allData = [];
+  let offset = 0;
+  const limit = 1000;
+  let hasMoreData = true;
+
+  while (hasMoreData) {
+    const payload = {
+      date_from: dates.from,
+      date_to: dates.to,
+      metrics: metrics,
+      dimension: ['sku', 'day'],
+      limit: limit,
+      offset: offset
+    };
+
+    const options = {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        'Client-Id': CONFIG_FB.SELLER_CLIENT_ID,
+        'Api-Key': CONFIG_FB.SELLER_API_KEY
+      },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    };
+
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+
+      if (response.getResponseCode() === 200) {
+        const data = JSON.parse(response.getContentText());
+
+        if (data.result && data.result.data && data.result.data.length > 0) {
+          allData = allData.concat(data.result.data);
+
+          if (data.result.data.length < limit) {
+            hasMoreData = false;
+          } else {
+            offset += limit;
+            Utilities.sleep(1000);
+          }
+        } else {
+          hasMoreData = false;
+        }
+      } else {
+        hasMoreData = false;
+      }
+    } catch (e) {
+      Logger.log('✗ Исключение: ' + e);
+      hasMoreData = false;
+    }
+  }
+
+  return allData;
+}
+
+function mergeAnalyticsData_FB(data1, data2) {
+  const map = {};
+
+  data1.forEach(row => {
+    const key = row.dimensions[0].id + '_' + row.dimensions[1].id; // SKU_DATE
+    map[key] = {
+      date: row.dimensions[1].id, // 'YYYY-MM-DD'
+      sku: row.dimensions[0].id,
+      metrics1: row.metrics,
+      metrics2: []
+    };
+  });
+
+  data2.forEach(row => {
+    const key = row.dimensions[0].id + '_' + row.dimensions[1].id;
+    if (map[key]) map[key].metrics2 = row.metrics;
+  });
+
+  const result = [];
+  for (let key in map) {
+    const item = map[key];
+    result.push([
+      item.date,
+      item.sku,
+      item.metrics1[0] || 0,   // revenue
+      item.metrics1[1] || 0,   // ordered_units
+      item.metrics1[2] || 0,   // hits_view_search
+      item.metrics1[3] || 0,   // hits_view_pdp
+      item.metrics1[4] || 0,   // hits_view
+      item.metrics1[5] || 0,   // hits_tocart_search
+      item.metrics1[6] || 0,   // hits_tocart_pdp
+      item.metrics1[7] || 0,   // hits_tocart
+      item.metrics1[8] || 0,   // session_view_search
+      item.metrics1[9] || 0,   // session_view_pdp
+      item.metrics1[10] || 0,  // session_view
+      item.metrics1[11] ? (item.metrics1[11] * 100).toFixed(2) : 0, // conv_tocart_search
+      item.metrics1[12] ? (item.metrics1[12] * 100).toFixed(2) : 0, // conv_tocart_pdp
+      item.metrics1[13] ? (item.metrics1[13] * 100).toFixed(2) : 0, // conv_tocart
+      item.metrics2[0] || 0,   // returns
+      item.metrics2[1] || 0,   // cancellations
+      item.metrics2[2] || 0,   // delivered_units
+      item.metrics2[3] || 0    // position_category
+    ]);
+  }
+
+  return result;
+}
+
+// ============================
+// ПОЛНАЯ ВЫГРУЗКА (ВСЕ ОТЧЁТЫ) (FB)
+// ============================
+
+function exportAllOzonData_FB() {
+  Logger.log('\n╔════════════════════════════════════╗');
+  Logger.log('║  ПОЛНАЯ ВЫГРУЗКА ДАННЫХ OZON (FB)  ║');
+  Logger.log('╚════════════════════════════════════╝\n');
+
+  const startTime = new Date();
+
+  try { exportStatisticsByDay_FB(); } catch (e) { Logger.log('✗ Ошибка в статистике по дням (FB): ' + e); }
+  try { exportStatisticsByProducts_FB(); } catch (e) { Logger.log('✗ Ошибка в статистике по товарам (FB): ' + e); }
+  try { exportSalesFunnel_FB(); } catch (e) { Logger.log('✗ Ошибка в воронке продаж (FB): ' + e); }
+  try { exportOrdersFBS_FB(); } catch (e) { Logger.log('✗ Ошибка в заказах FBS (FB): ' + e); }
+  try { exportOrdersFBO_FB(); } catch (e) { Logger.log('✗ Ошибка в заказах FBO (FB): ' + e); }
+
+  const endTime = new Date();
+  const duration = Math.round((endTime - startTime) / 1000);
+
+  Logger.log('\n╔════════════════════════════════════╗');
+  Logger.log('║  ВЫГРУЗКА ЗАВЕРШЕНА (FB)           ║');
+  Logger.log('║  Время выполнения: ' + duration + ' сек          ║');
+  Logger.log('╚════════════════════════════════════╝');
+}
