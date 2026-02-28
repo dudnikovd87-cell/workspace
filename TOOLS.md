@@ -43,6 +43,12 @@ Add whatever helps you do your job. This is your cheat sheet.
 
 - Integration code/token: `<YOUR_NOTION_TOKEN>`
 
+### Yandex Disk API
+
+- Client ID: ffff3ed56f284caea2adce5657669d2d
+- Client Secret: d78dd03bd44448988607e3784be3ca05
+- Access Token: y0__xiAqz4g_r7zyRYyAXSnf2j3EsKGAUDjQw-zOHw8Og
+
 ### Ozon API
 
 - Client ID: `<YOUR_OZON_CLIENT_ID>`

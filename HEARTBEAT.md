@@ -1,5 +1,10 @@
 # HEARTBEAT.md
 
-# Keep this file empty (or with only comments) to skip heartbeat API calls.
+## Proactive Checks (2-4 раза в день)
 
-# Add tasks below when you want the agent to check something periodically.
+Каждый раз подумай:
+1. Есть ли новость по темам (ИИ, маркетплейсы, бизнес, ноутбуки)?
+2. Что я могу полезного сделать прямо сейчас?
+3. Есть что спросить или напомнить?
+
+Если есть что-то стоящее — напиши. Если нет — просто ответь HEARTBEAT_OK.

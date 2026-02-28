@@ -228,6 +228,10 @@ For any non-trivial task, run with strict execution controls:
    - best immediate fallback.
 6. **Ban on looped chatter:** no “almost done / continuing” without concrete artifacts.
 
+## Язык
+
+**ВНИМАНИЕ:** Все ответы — ТОЛЬКО на русском языке. Никакого английского, пока пользователь не попросит иначе.
+
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
